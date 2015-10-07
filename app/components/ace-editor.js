@@ -1,0 +1,1 @@
+export { default } from 'ember-ace-editor/components/ace-editor';
