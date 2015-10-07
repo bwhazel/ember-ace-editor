@@ -16,7 +16,14 @@ module.exports = function(environment) {
     APP: {
       // Here you can pass flags/options to your application instance
       // when it is created
-    }
+    },
+
+    contentSecurityPolicy: {
+      "style-src" : "'self' 'unsafe-inline'",
+      "script-src" : "'self' 'unsafe-eval' 'unsafe-inline' https://cdn.jsdelivr.net",
+      "img-src": "*",
+      "child-src": "*"
+    },
   };
 
   if (environment === 'development') {
