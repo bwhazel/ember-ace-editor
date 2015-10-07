@@ -70,7 +70,7 @@ export default Ember.Component.extend({
         [ 'content', 'element', 'language', 'tabSize', 'theme' ]
       );
 
-      const ace = window.ace;
+      const { ace } = window;
       const editor = ace.edit(element);
       const editorSession = editor.getSession();
 
@@ -94,6 +94,6 @@ export default Ember.Component.extend({
     if (editor) {
       editor.destroy();
     }
-  }),
+  })
 
 });
