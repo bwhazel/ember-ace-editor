@@ -8,14 +8,26 @@ export default Ember.Component.extend({
 
   editorApiBaseUrl: 'https://cdn.jsdelivr.net/ace',
   editorApiVersion: '1.2.0',
+  editorDependenciesDidLoad: null, // Action
+  editorDidRender: null, // Action
   language: 'css',
   tabSize: 2,
   theme: 'monokai',
 
   /* Properties */
 
-  classNames: ['ace-editor'],
+  classNameBindings: ['loaded'],
+  classNames: ['code-editor'],
   editor: null,
+  loaded: null,
+
+  baseUrl: computed(function() {
+    const { editorApiBaseUrl, editorApiVersion } = this.getProperties(
+      [ 'editorApiBaseUrl', 'editorApiVersion' ]
+    );
+
+    return `${editorApiBaseUrl}/${editorApiVersion}/noconflict/`;
+  }),
 
   content: computed(function(key, value) {
     const editor = this.get('editor');
@@ -43,26 +55,59 @@ export default Ember.Component.extend({
   },
 
   loadEditorApi: on('init', function() {
-    const { editorApiBaseUrl, editorApiVersion, language, theme } = this.getProperties(
-      [ 'editorApiBaseUrl', 'editorApiVersion', 'language', 'theme' ]
+    const baseUrl = this.get('baseUrl');
+
+    /* Ensure the core library loads before the extras */
+
+    if (!window.ace) {
+      this.getScript(`${baseUrl}ace.js`).then(() => {
+        this.loadEditorExtras();
+      });
+    } else {
+      this.loadEditorExtras();
+    }
+  }),
+
+  loadEditorExtras() {
+    const { baseUrl, language, theme } = this.getProperties(
+      [ 'baseUrl', 'language', 'theme' ]
     );
-    const baseUrl = `${editorApiBaseUrl}/${editorApiVersion}`;
-    const getScriptPromises = [];
+    const extrasPromises = [];
+    const extras = {
+      mode: `mode-${language}`,
+      theme: `theme-${theme}`,
+    };
 
-    ['ace', `mode-${language}`, `theme-${theme}`].forEach((fileName) => {
-      const promise = this.getScript(`${baseUrl}/noconflict/${fileName}.js`);
+    Object.keys(extras).forEach((option) => {
+      const fileName = extras[option];
+      const modulePath = `ace/${option}/${fileName}`;
 
-      getScriptPromises.push(promise);
+      /* For each extra required, check if it exists
+      (i.e. it has already been loaded)... */
+
+      if (!window.ace.require(modulePath)) {
+
+        /* ... If not, load it, and push the promise
+        to an array to track load progress */
+
+        const promise = this.getScript(`${baseUrl}${fileName}.js`);
+
+        extrasPromises.push(promise);
+      }
     });
 
-    RSVP.allSettled(getScriptPromises).then(() => {
+    /* Then, once the extras are finished loading, render
+    the editor */
+
+    RSVP.allSettled(extrasPromises).then(() => {
       run.later(this, function() {
+        this.sendAction('editorDependenciesDidLoad');
         this.renderEditor();
       }, 2000);
     }).catch(() => {
-      this.flashMessage('error', 'Sorry, the editor is not available at this time');
+      this.flashMessage('error', 'Sorry, editor is not available at this time.');
     });
-  }),
+  },
 
   renderEditor() {
     run.scheduleOnce('render', this, function() {
@@ -84,7 +129,14 @@ export default Ember.Component.extend({
       editorSession.setTabSize(tabSize);
       editorSession.setValue(content);
 
+      this.sendAction('editorDidRender');
+
       this.set('editor', editor);
+      this.set('content', content);
+
+      run.later(this, function() {
+        this.set('loaded', true);
+      }, 500);
     });
   },
 
