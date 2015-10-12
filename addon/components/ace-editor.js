@@ -105,7 +105,7 @@ export default Ember.Component.extend({
         this.renderEditor();
       }, 2000);
     }).catch(() => {
-      this.flashMessage('error', 'Sorry, custom CSS is not available at this time.');
+      this.flashMessage('error', 'Sorry, editor is not available at this time.');
     });
   },
 
